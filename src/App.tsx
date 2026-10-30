@@ -12,7 +12,6 @@ const quiz:Record<string,{q:string;o:string[]}[]>={
  "playwright-starter":[{q:"Which language is used in this starter?",o:["PHP","Ruby","TypeScript"]},{q:"Which locator is usually preferred?",o:["getByRole","Random CSS class","Fixed coordinates"]},{q:"When is automation valuable?",o:["Never run tests","Repeatable valuable checks","Tests with no expected result"]},{q:"What helps diagnose failed tests?",o:["Delete test","Ignore failure","Trace and screenshot"]},{q:"Why avoid arbitrary sleeps?",o:["They improve determinism","They improve accessibility","They slow tests and hide timing problems"]}],
  "ai-for-qa":[{q:"What is the best role for AI in QA?",o:["Replace verification","Assist analysis while humans validate","Guarantee bug-free software"]},{q:"What makes a useful prompt?",o:["No context","Only 'do it'","Context, constraints and format"]},{q:"Should AI-generated test cases be reviewed?",o:["Yes, against requirements","Always trust them","Never"]},{q:"What should not be pasted into unapproved AI tools?",o:["Public docs","Synthetic examples","Passwords, tokens and private data"]},{q:"What should QA do with generated test ideas?",o:["Copy without review","Assume all are correct","Verify rules and remove duplicates"]}]
 };
-const keys:Record<string,number[]>={"qa-foundations":[1,2,0,1,2],"api-postman":[0,1,2,1,2],"playwright-starter":[2,0,1,2,2],"ai-for-qa":[1,2,0,2,2]};
 const money=(n:number)=>n===0?"Free":"$"+(n/100).toFixed(0);
 const niceDate=(s:string)=>new Date(s).toLocaleDateString();
 export default function App(){
