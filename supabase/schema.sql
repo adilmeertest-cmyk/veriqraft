@@ -41,6 +41,15 @@ create table if not exists public.certificates (
  issued_at timestamptz not null default now(), revoked_at timestamptz,
  unique(user_id,course_id)
 );
+-- Minimal public lookup record; do not expose private auth/user IDs through the public endpoint.
+create table if not exists public.certificate_registry (
+ certificate_code text primary key,
+ recipient_name text not null,
+ course_title text not null,
+ score integer not null check(score between 70 and 100),
+ issued_at timestamptz not null,
+ revoked_at timestamptz
+);
 create table if not exists public.inquiries (
  id uuid primary key default gen_random_uuid(), name text not null,
  email text not null, topic text not null, message text not null,
@@ -52,6 +61,7 @@ alter table public.enrollments enable row level security;
 alter table public.lesson_progress enable row level security;
 alter table public.assessment_attempts enable row level security;
 alter table public.certificates enable row level security;
+alter table public.certificate_registry enable row level security;
 alter table public.inquiries enable row level security;
 create policy "Own profile read" on public.profiles for select to authenticated using(auth.uid()=id);
 create policy "Own profile insert" on public.profiles for insert to authenticated with check(auth.uid()=id);
@@ -62,7 +72,7 @@ create policy "Own progress read" on public.lesson_progress for select to authen
 create policy "Own progress write" on public.lesson_progress for insert to authenticated with check(auth.uid()=user_id);
 create policy "Own attempts read" on public.assessment_attempts for select to authenticated using(auth.uid()=user_id);
 create policy "Own certificates read" on public.certificates for select to authenticated using(auth.uid()=user_id);
-create policy "Public certificate lookup" on public.certificates for select to anon,authenticated using(true);
+create policy "Public certificate verification fields only" on public.certificate_registry for select to anon,authenticated using(true);
 -- IMPORTANT:
 -- Do not grant browser-side insert/update on assessment_attempts or certificates.
 -- A trusted Edge Function must grade submitted answers and issue certificates server-side.
