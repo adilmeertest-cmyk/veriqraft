@@ -1,34 +1,26 @@
 # Veriqraft
-
 **Where quality meets creation.**
 
-A learning and digital quality studio by Muhammad Adil. Veriqraft brings together practical software testing, test automation and AI workflows.
+Veriqraft is a React + TypeScript learning platform for software quality engineering, automation and practical AI. Supabase provides authentication, PostgreSQL, Row Level Security and the assessment Edge Function.
 
-## Included
-- Responsive landing page and course catalogue with search and category filters
-- Course detail previews and lesson-player demo
-- Course-specific final assessments with a 70% pass threshold
-- Certificate design with learner name, course title, unique ID, QR code and print-to-PDF
-- Certificate lookup UI
-- Browser-local demo progress so the experience can be explored without account setup
+## Stack
+- React 19 + TypeScript + Vite
+- Supabase Auth and PostgreSQL
+- Supabase Edge Functions for server-side assessment grading and certificate issuance
+- Vercel deployment
 
-## Run locally
-```bash
-npm install
-npm run dev
-```
-Build with `npm run build`.
+## Local setup
+1. Install Node.js 20.19+ or 22.12+.
+2. Run `npm install`.
+3. Copy `.env.example` to `.env.local` and add the Supabase project URL and publishable key.
+4. Run `npm run dev`.
+5. Run `npm run build` to type-check and create a production build.
 
-## Demo vs production
-Course progress and certificates currently use browser localStorage. The certificate is deliberately marked **DEMO — NOT A VERIFIED CREDENTIAL**. A local browser record can be edited and is not a trusted public registry. Do not market demo certificates as accredited, independently verified or tamper-proof.
+## Supabase
+The schema migration is in `supabase/schema.sql`. The `complete-assessment` Edge Function validates the signed-in user, enrollment and lesson completion, grades answers on the server, and issues a certificate after a passing score. Do not expose the Supabase service-role key in the browser.
 
-## Before a real launch
-1. Create a Supabase project and apply `supabase/schema.sql`.
-2. Add Supabase Auth and persist enrolments, lesson progress and assessment attempts.
-3. Move answer keys and grading to a server-side Supabase Edge Function.
-4. Issue certificates only from the trusted server after checking course completion and a passing score.
-5. Serve public verification from the database, including valid, revoked and not-found states.
-6. Connect a payment provider using signed server-side webhooks before granting paid access.
-7. Add email notifications, admin roles/policies, rate limiting, backups, privacy and terms pages.
+## Vercel environment variables
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for Production, Preview and Development, then deploy the `main` branch.
 
-Never expose Supabase service-role keys or payment secrets in browser code. Never use private client QA evidence as public course material without permission.
+## Current scope
+Authentication, profiles, course catalogue, enrollment, lesson progress, server-graded assessments, certificate issuance/lookup and inquiry submission are implemented. Paid checkout, transactional email/SMTP, admin console and video hosting require their respective provider credentials/configuration before they can be enabled in production.
