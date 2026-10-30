@@ -38,7 +38,76 @@ export default function App(){
  <section className="contact"><div><div className="eyebrow">WORK WITH VERIQRAFT / 004</div><h2>Have a product<br/>that needs <em>quality?</em></h2><p>Talk about manual QA, web and mobile testing, API validation or automation support.</p></div><form onSubmit={inquiry}><div className="form-row"><input name="name" placeholder="Your name" required/><input name="email" type="email" placeholder="Email address" required/></div><select name="service" required defaultValue=""><option value="" disabled>What do you need?</option><option>Manual QA and functional testing</option><option>Web or mobile app testing</option><option>API testing</option><option>Test automation</option><option>Other project inquiry</option></select><textarea name="message" rows={4} placeholder="Tell me about your project…" required/><button className="lime" disabled={busy}>Send inquiry ↗</button></form></section></>}
  {page==="auth"&&<section className="auth"><div><div className="eyebrow">YOUR NEXT CHAPTER STARTS HERE</div><h1>Make learning<br/><em>count.</em></h1><p>Create an account to save progress, complete assessments and access your certificates from anywhere.</p></div><form className="auth-card" onSubmit={async e=>{e.preventDefault();if(!supabase)return;setBusy(true);const f=new FormData(e.currentTarget),email=String(f.get("email")),password=String(f.get("password")),name=String(f.get("name")??"");const r=mode==="register"?await supabase.auth.signUp({email,password,options:{data:{full_name:name}}}):await supabase.auth.signInWithPassword({email,password});setBusy(false);if(r.error)setNotice(r.error.message);else if(mode==="register"&&!r.data.session)setNotice("Account created. Check your email to confirm, then sign in.");else{setPage("dashboard");setNotice("Welcome to Veriqraft.")}}}><div className="eyebrow dark-text">MEMBER ACCESS</div><h2>{mode==="register"?"Create your account":"Welcome back"}</h2>{mode==="register"&&<label>Full name<input name="name" required minLength={2}/></label>}<label>Email address<input name="email" type="email" required/></label><label>Password<input name="password" type="password" minLength={8} required/></label><button className="dark full" disabled={busy}>{busy?"Please wait…":mode==="register"?"Create account ↗":"Log in ↗"}</button><p>{mode==="register"?"Already registered?":"New to Veriqraft?"} <button type="button" onClick={()=>setMode(mode==="register"?"login":"register")}>{mode==="register"?"Log in":"Create account"}</button></p><small>Authentication is securely handled by Supabase Auth.</small></form></section>}
  {page==="dashboard"&&<section className="dashboard"><div className="eyebrow dark-text">YOUR LEARNING SPACE / MEMBER AREA</div><h1>Your progress, in one place.</h1><div className="stats"><div><small>ACTIVE COURSES</small><b>{enrolled.length}</b></div><div><small>LESSONS COMPLETED</small><b>{Object.values(progress).reduce((n,a)=>n+a.length,0)}</b></div><div><small>CERTIFICATES</small><b>{certs.filter(c=>!c.revoked_at).length}</b></div></div><h2>My learning paths</h2>{courses.filter(c=>enrolled.includes(c.id)).map(c=><article className="enrol-row" key={c.id}><div><b>{c.title}</b><p>{(progress[c.id]??[]).length} / {c.curriculum.length} lessons complete</p></div><button className="dark" onClick={()=>{setCourse(c);setLesson(0);setResult(null);setPage("course")}}>Continue ↗</button></article>)}{enrolled.length===0&&<p>You have not enrolled in a course yet. <button onClick={()=>setPage("home")}>Explore courses →</button></p>}<h2>My certificates</h2>{certs.map(c=><article className="enrol-row" key={c.certificate_code}><div><b>{c.certificate_code}</b><p>{c.learner_name} · Score {c.score}% · {niceDate(c.issued_at)}</p></div><button onClick={()=>{setCode(c.certificate_code);setPage("verify");setVerified(null)}}>Verify ↗</button></article>)}</section>}
- {page==="course"&&course&&<section className="learning"><button className="back" onClick={()=>setPage("dashboard")}>← Back to dashboard</button><div className="learning-grid"><aside><div className="eyebrow dark-text">LEARNING PATH</div><h2>{course.title}</h2><div className="progress"><i style={{width:(done.length/course.curriculum.length*100)+"%"}}/></div><small>{done.length} / {course.curriculum.length} LESSONS COMPLETE</small>{course.curriculum.map((l,i)=><button className={lesson===i?"lesson active":"lesson"} key={l.id} onClick={()=>setLesson(i)}>{done.includes(l.id)?"✓":String(i+1).padStart(2,"0")}　{l.title}</button>)}<button className="lesson" onClick={()=>{setLesson(course.curriculum.length);setResult(null)}}>Final assessment ↗</button></aside><div className="lesson-main">{lesson < course.curriculum.length ?(()=>{const l=course.curriculum[lesson];return <><div className="eyebrow dark-text">LESSON {lesson+1} / {course.curriculum.length}</div><div className="lesson-art">VQ / PRACTICE</div><h1>{l.title}</h1><p>{l.body}</p><div className="callout"><b>Put it into practice</b><p>Write one example of how you would apply this concept in a real project.</p></div><button className="dark" disabled={done.includes(l.id)} onClick={()=>void completeLesson(l)}>{done.includes(l.id)?"Completed ✓":"Mark complete & continue →"}</button></>:<><div className="eyebrow dark-text">FINAL ASSESSMENT</div><h1>Prove what you know.</h1><p>Five questions. A passing score of 70% earns a verifiable certificate.</p>{!allDone?<div className="callout">Complete every lesson to unlock the assessment. ({done.length}/{course.curriculum.length})</div>:result?<div className="callout"><h2>{result.passed?"Assessment passed":"Not quite — try again"} · {result.score}%</h2><p>{result.passed?"Your certificate has been issued and saved to your dashboard.":"Review the lessons and retake the assessment."}</p>{result.certificate&&<b>{result.certificate.certificate_code}</b>}<button onClick={()=>{setResult(null);setAnswers([])}}>Retake assessment</button></div>:<><div className="quiz">{(quiz[course.id]??[]).map((q,i)=><div className="question" key={q.q}><h3>{i+1}. {q.q}</h3>{q.o.map((o,j)=><button className={answers[i]===j?"selected":""} key={o} onClick={()=>setAnswers(v=>{const n=[...v];n[i]=j;return n})}>{String.fromCharCode(65+j)}. {o}</button>)}</div>)}</div><button className="dark" disabled={busy||answers.length!==5||answers.some(a=>a===undefined)} onClick={()=>void submit()}>{busy?"Submitting…":"Submit assessment ↗"}</button></>}</>}</div></div></section>}
+  {page==="course"&&course&&(
+    <section className="learning">
+      <button className="back" onClick={()=>setPage("dashboard")}>← Back to dashboard</button>
+      <div className="learning-grid">
+        <aside>
+          <div className="eyebrow dark-text">LEARNING PATH</div>
+          <h2>{course.title}</h2>
+          <div className="progress"><i style={{width:(done.length/course.curriculum.length*100)+"%"}}/></div>
+          <small>{done.length} / {course.curriculum.length} LESSONS COMPLETE</small>
+          {course.curriculum.map((l,i)=>(
+            <button className={lesson===i?"lesson active":"lesson"} key={l.id} onClick={()=>setLesson(i)}>
+              {done.includes(l.id)?"✓":String(i+1).padStart(2,"0")}　{l.title}
+            </button>
+          ))}
+          <button className="lesson" onClick={()=>{setLesson(course.curriculum.length);setResult(null)}}>Final assessment ↗</button>
+        </aside>
+        <div className="lesson-main">
+          {lesson < course.curriculum.length ? (
+            <>
+              <div className="eyebrow dark-text">LESSON {lesson+1} / {course.curriculum.length}</div>
+              <div className="lesson-art">VQ / PRACTICE</div>
+              <h1>{course.curriculum[lesson].title}</h1>
+              <p>{course.curriculum[lesson].body}</p>
+              <div className="callout">
+                <b>Put it into practice</b>
+                <p>Write one example of how you would apply this concept in a real project.</p>
+              </div>
+              <button className="dark" disabled={done.includes(course.curriculum[lesson].id)} onClick={()=>void completeLesson(course.curriculum[lesson])}>
+                {done.includes(course.curriculum[lesson].id)?"Completed ✓":"Mark complete & continue →"}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="eyebrow dark-text">FINAL ASSESSMENT</div>
+              <h1>Prove what you know.</h1>
+              <p>Five questions. A passing score of 70% earns a verifiable certificate.</p>
+              {!allDone ? (
+                <div className="callout">Complete every lesson to unlock the assessment. ({done.length}/{course.curriculum.length})</div>
+              ) : result ? (
+                <div className="callout">
+                  <h2>{result.passed?"Assessment passed":"Not quite — try again"} · {result.score}%</h2>
+                  <p>{result.passed?"Your certificate has been issued and saved to your dashboard.":"Review the lessons and retake the assessment."}</p>
+                  {result.certificate&&<b>{result.certificate.certificate_code}</b>}
+                  <button onClick={()=>{setResult(null);setAnswers([])}}>Retake assessment</button>
+                </div>
+              ) : (
+                <>
+                  <div className="quiz">
+                    {(quiz[course.id]??[]).map((q,i)=>(
+                      <div className="question" key={q.q}>
+                        <h3>{i+1}. {q.q}</h3>
+                        {q.o.map((o,j)=>(
+                          <button className={answers[i]===j?"selected":""} key={o} onClick={()=>setAnswers(v=>{const n=[...v];n[i]=j;return n})}>
+                            {String.fromCharCode(65+j)}. {o}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <button className="dark" disabled={busy||answers.length!==5||answers.some(a=>a===undefined)} onClick={()=>void submit()}>
+                    {busy?"Submitting…":"Submit assessment ↗"}
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  )}
  {page==="verify"&&<section className="verify"><div className="eyebrow dark-text">CREDENTIAL REGISTRY / PUBLIC LOOKUP</div><h1>Verify a<br/><em>Veriqraft certificate.</em></h1><p>Enter the certificate code to check its public registry status.</p><form onSubmit={verify}><input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="VQ-XXXXXXXXXXXX" required/><button className="dark" disabled={busy}>{busy?"Checking…":"Verify ↗"}</button></form>{verified&&<div className="verify-card"><span>{verified.status==="valid"?"✓ VALID CREDENTIAL":"REVOKED CREDENTIAL"}</span><h2>{String(verified.course_title)}</h2><h3>{String(verified.learner_name)}</h3><p>{String(verified.certificate_code)} · Score {String(verified.score)}% · {niceDate(String(verified.issued_at))}</p></div>}</section>}
  <footer><b>✓ veri<span>qraft</span></b><p>Where quality meets creation.<br/>An independent digital quality and learning studio.</p><span>© 2026 VERIQRAFT · MUHAMMAD ADIL</span></footer></div>
 }
