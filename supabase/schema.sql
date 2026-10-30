@@ -1,80 +1,79 @@
--- Veriqraft production data model. Apply to a Supabase project.
+-- Veriqraft schema reference. This schema is already applied to Supabase project njswpsbwvgimfipofhhe.
+-- Production migrations are recorded in Supabase as veriqraft_learning_platform and lock_profile_role_updates.
+-- Do not expose service-role credentials in browser code.
+
 create extension if not exists pgcrypto;
-create table if not exists public.profiles (
- id uuid primary key references auth.users(id) on delete cascade,
- full_name text not null default '',
- created_at timestamptz not null default now()
+
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text not null default '',
+  avatar_url text,
+  role text not null default 'student' check (role in ('student','admin')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
-create table if not exists public.courses (
- id text primary key, title text not null, description text not null default '',
- price_cents integer not null default 0 check(price_cents >= 0),
- published boolean not null default false, created_at timestamptz not null default now()
+
+create table public.courses (
+  id text primary key, slug text unique not null, title text not null,
+  category text not null, level text not null, duration text not null,
+  price_cents integer not null default 0 check (price_cents >= 0),
+  description text not null, outcomes jsonb not null default '[]'::jsonb,
+  curriculum jsonb not null default '[]'::jsonb, published boolean not null default true,
+  created_at timestamptz not null default now()
 );
-create table if not exists public.enrollments (
- id uuid primary key default gen_random_uuid(),
- user_id uuid not null references auth.users(id) on delete cascade,
- course_id text not null references public.courses(id),
- status text not null default 'active' check(status in ('active','completed','refunded')),
- enrolled_at timestamptz not null default now(), unique(user_id,course_id)
+
+create table public.enrollments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  course_id text not null references public.courses(id) on delete cascade,
+  status text not null default 'active' check (status in ('active','completed','cancelled')),
+  enrolled_at timestamptz not null default now(), unique(user_id, course_id)
 );
-create table if not exists public.lesson_progress (
- id uuid primary key default gen_random_uuid(),
- user_id uuid not null references auth.users(id) on delete cascade,
- course_id text not null references public.courses(id),
- lesson_key text not null, completed_at timestamptz not null default now(),
- unique(user_id,course_id,lesson_key)
+
+create table public.lesson_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  course_id text not null references public.courses(id) on delete cascade,
+  lesson_id text not null, completed_at timestamptz not null default now(),
+  unique(user_id, course_id, lesson_id)
 );
-create table if not exists public.assessment_attempts (
- id uuid primary key default gen_random_uuid(),
- user_id uuid not null references auth.users(id) on delete cascade,
- course_id text not null references public.courses(id),
- score integer not null check(score between 0 and 100),
- passed boolean not null, submitted_at timestamptz not null default now()
+
+create table public.assessment_attempts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  course_id text not null references public.courses(id) on delete cascade,
+  score integer not null check (score between 0 and 100),
+  passed boolean not null, created_at timestamptz not null default now()
 );
-create table if not exists public.certificates (
- id uuid primary key default gen_random_uuid(),
- certificate_code text not null unique,
- user_id uuid not null references auth.users(id),
- course_id text not null references public.courses(id),
- recipient_name text not null,
- score integer not null check(score between 70 and 100),
- issued_at timestamptz not null default now(), revoked_at timestamptz,
- unique(user_id,course_id)
+
+create table public.certificates (
+  id uuid primary key default gen_random_uuid(),
+  certificate_code text unique not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  course_id text not null references public.courses(id) on delete restrict,
+  learner_name text not null, score integer not null check (score between 0 and 100),
+  issued_at timestamptz not null default now(), revoked_at timestamptz
 );
--- Minimal public lookup record; do not expose private auth/user IDs through the public endpoint.
-create table if not exists public.certificate_registry (
- certificate_code text primary key,
- recipient_name text not null,
- course_title text not null,
- score integer not null check(score between 70 and 100),
- issued_at timestamptz not null,
- revoked_at timestamptz
+
+create table public.certificate_registry (
+  certificate_code text primary key references public.certificates(certificate_code) on delete cascade,
+  learner_name text not null, course_title text not null,
+  score integer not null, issued_at timestamptz not null,
+  status text not null default 'valid' check (status in ('valid','revoked'))
 );
-create table if not exists public.inquiries (
- id uuid primary key default gen_random_uuid(), name text not null,
- email text not null, topic text not null, message text not null,
- created_at timestamptz not null default now()
+
+create table public.inquiries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  name text not null, email text not null, service text not null,
+  message text not null,
+  status text not null default 'new' check (status in ('new','in_progress','closed')),
+  created_at timestamptz not null default now()
 );
-alter table public.profiles enable row level security;
-alter table public.courses enable row level security;
-alter table public.enrollments enable row level security;
-alter table public.lesson_progress enable row level security;
-alter table public.assessment_attempts enable row level security;
-alter table public.certificates enable row level security;
-alter table public.certificate_registry enable row level security;
-alter table public.inquiries enable row level security;
-create policy "Own profile read" on public.profiles for select to authenticated using(auth.uid()=id);
-create policy "Own profile insert" on public.profiles for insert to authenticated with check(auth.uid()=id);
-create policy "Own profile update" on public.profiles for update to authenticated using(auth.uid()=id) with check(auth.uid()=id);
-create policy "Published courses public" on public.courses for select using(published=true);
-create policy "Own enrollments read" on public.enrollments for select to authenticated using(auth.uid()=user_id);
-create policy "Own progress read" on public.lesson_progress for select to authenticated using(auth.uid()=user_id);
-create policy "Own progress write" on public.lesson_progress for insert to authenticated with check(auth.uid()=user_id);
-create policy "Own attempts read" on public.assessment_attempts for select to authenticated using(auth.uid()=user_id);
-create policy "Own certificates read" on public.certificates for select to authenticated using(auth.uid()=user_id);
-create policy "Public certificate verification fields only" on public.certificate_registry for select to anon,authenticated using(true);
--- IMPORTANT:
--- Do not grant browser-side insert/update on assessment_attempts or certificates.
--- A trusted Edge Function must grade submitted answers and issue certificates server-side.
--- Add a signed payment webhook before activating paid enrolments.
--- Add admin-only policies based on a server-managed role claim before launching admin tools.
+
+-- RLS is enabled on every table. Users can read their own profile, enrollments,
+-- lesson progress, assessment attempts and certificates. Published courses and
+-- minimal certificate registry fields are public. Inquiry submission is public.
+-- Assessment attempts and certificates are written only by the trusted Edge Function.
+-- Profile updates are revoked to prevent users from promoting their own role.
+-- Server-only service-role key must never be included in VITE_ browser variables.
